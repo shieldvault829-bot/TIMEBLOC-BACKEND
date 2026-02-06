@@ -42,7 +42,8 @@ try {
 const app = express();
 const httpServer = createServer(app);
 
-// ========== CRITICAL: Health routes START mein (middleware se pehle) ==========
+// ========== CRITICAL: Health routes START mein (BEFORE ALL MIDDLEWARE) ==========
+// Railway health check ke liye yeh sabse important hai
 app.get('/', (req, res) => {
   res.json({ 
     status: 'healthy', 
@@ -59,6 +60,14 @@ app.get('/health', (req, res) => {
     message: 'Server is healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    api: 'healthy',
+    timestamp: new Date().toISOString()
   });
 });
 // ========== END CRITICAL ==========
@@ -209,7 +218,13 @@ setInterval(() => {
   }
 }, 60000);
 
+// Rate limiting middleware - EXCLUDE HEALTH CHECKS
 app.use((req, res, next) => {
+  // Skip rate limiting for health checks (Railway requirement)
+  if (req.path === '/' || req.path === '/health' || req.path === '/api/health') {
+    return next();
+  }
+  
   const ip = req.ip || req.connection.remoteAddress || 'unknown';
   const now = Date.now();
   
@@ -359,8 +374,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// 7. Request logging (security focused)
+// 7. Request logging (security focused) - EXCLUDE HEALTH CHECKS
 app.use((req, res, next) => {
+  // Skip logging for health checks (reduce noise)
+  if (req.path === '/' || req.path === '/health' || req.path === '/api/health') {
+    return next();
+  }
+  
   const start = Date.now();
   const requestId = crypto.randomBytes(8).toString('hex');
   
@@ -910,26 +930,27 @@ app.use('*', (req, res) => {
 });
 
 // ====================
-// START SERVER
+// START SERVER - 101% STABLE FOR RAILWAY
 // ====================
 const PORT = process.env.PORT || 3000;
 
-// ✅ RAILWAY FIX: '0.0.0.0' binding
+// ✅ RAILWAY FIX: '0.0.0.0' binding for external access
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log('🔒 ====================================');
-  console.log('🔒 TIME BLOC ULTRA SECURE SERVER');
-  console.log('🔒 ====================================');
+  console.log('🚀 ====================================');
+  console.log('🚀 TIME BLOC ULTRA SECURE SERVER');
+  console.log('🚀 ====================================');
   console.log(`✅ Port: ${PORT}`);
   console.log(`✅ Environment: ${process.env.NODE_ENV || 'production'}`);
-  console.log(`✅ Security Level: MAXIMUM (101%)`);
-  console.log(`✅ Health Check: / & /health`);
+  console.log(`✅ Server bound to: 0.0.0.0:${PORT}`);
+  console.log(`✅ Health Check Routes:`);
+  console.log(`   • http://0.0.0.0:${PORT}/`);
+  console.log(`   • http://0.0.0.0:${PORT}/health`);
+  console.log(`   • http://0.0.0.0:${PORT}/api/health`);
   console.log(`✅ Socket.io: READY`);
-  console.log(`✅ WebSocket: ENABLED`);
-  console.log('🔒 ====================================');
-  
-  // Simple self-test
-  console.log('✅ Server started successfully');
-  console.log(`✅ Health check available at: http://0.0.0.0:${PORT}/health`);
+  console.log(`✅ Security: MAXIMUM (101%)`);
+  console.log('🚀 ====================================');
+  console.log('✅ Server started successfully!');
+  console.log('✅ Ready for Railway deployment!');
 });
 
 // Graceful shutdown
@@ -953,33 +974,4 @@ function gracefulShutdown(signal) {
 }
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-process.on('uncaughtException', (error) => {
-  console.error('🔥 UNCAUGHT EXCEPTION:', error.message);
-  
-  if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Attempting to recover from uncaught exception...');
-  } else {
-    gracefulShutdown('UNCAUGHT_EXCEPTION');
-  }
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🔥 UNHANDLED REJECTION at:', promise);
-  console.error('Reason:', reason);
-  
-  if (process.env.NODE_ENV !== 'production') {
-    throw reason;
-  }
-});
-
-// Export for testing
-module.exports = { 
-  app, 
-  io, 
-  httpServer, 
-  socketConnections,
-  IP_BLOCKLIST,
-  requestCounts 
-};
+process.on
