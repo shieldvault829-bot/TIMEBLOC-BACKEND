@@ -9,7 +9,7 @@
     "test": "echo \"No tests specified\" && exit 0",
     "railway:start": "node --max-old-space-size=512 --trace-warnings server.js",
     "health": "node -e \"console.log('✅ Health check passed')\"",
-    "preinstall": "echo 'Skipping cache cleanup for Railway'",  // ✅ CHANGED
+    "preinstall": "echo 'Skipping cache cleanup for Railway'",
     "build": "echo 'Build completed'"
   },
   "keywords": [
