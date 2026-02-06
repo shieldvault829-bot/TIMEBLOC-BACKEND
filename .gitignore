@@ -1,0 +1,340 @@
+# ====================================
+# NODE.JS & DEPENDENCIES
+# ====================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ====================================
+# ENVIRONMENT VARIABLES & SECRETS
+# ====================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.railway
+.env.vercel
+.env.now
+.env.prod
+.env.dev
+.env.staging
+.env.example
+.env.sample
+.env.template
+.env.backup
+
+# API Keys, Secrets, Tokens
+*.key
+*.pem
+*.crt
+*.cert
+*.secret
+*.token
+*.jwt
+*.enc
+*.gpg
+*.asc
+
+# ====================================
+# DATABASE & LOCAL STORAGE
+# ====================================
+*.db
+*.sqlite
+*.sqlite3
+*.mdb
+*.ldb
+*.frm
+*.myd
+*.myi
+*.ibd
+*.dbf
+*.mdf
+*.ldf
+*.sdf
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Supabase local
+.supabase/
+supabase/
+local_supabase/
+
+# ====================================
+# LOGS
+# ====================================
+logs
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+debug.log
+error.log
+access.log
+
+# ====================================
+# RUNTIME & BUILD OUTPUTS
+# ====================================
+dist/
+build/
+.out/
+.next/
+.nuxt/
+.cache/
+public/build/
+.storybook/
+.storybook-static/
+out/
+.next-static/
+.next-server/
+.next-cache/
+.next-trace/
+.nx/
+.vscode/
+
+# Next.js
+.next/
+.next/cache/
+
+# Vercel
+.vercel/
+.vercel_build_output/
+
+# Railway
+.railway/
+.railway-tmp/
+
+# ====================================
+# OPERATING SYSTEM FILES
+# ====================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+~$*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ====================================
+# IDE & EDITOR FILES
+# ====================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.code-workspace
+.project
+.classpath
+.settings/
+*.tmproj
+*.sublime-*
+*.komodoproject
+.netbeans
+nbproject
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ====================================
+# TESTING & COVERAGE
+# ====================================
+coverage/
+.nyc_output/
+*.lcov
+.clover
+.nyc_output
+test-results/
+screenshots/
+videos/
+__snapshots__/
+*.snap
+.cypress/
+cypress/screenshots/
+cypress/videos/
+
+# ====================================
+# TEMPORARY & CACHE FILES
+# ====================================
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+.tmp/
+.npm/
+.eslintcache
+.stylelintcache
+.jest-cache/
+.pnp/
+.pnp.js
+.pnp.cjs
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.yarnrc.yml
+.pnp.cjs
+
+# ====================================
+# UPLOADS & MEDIA
+# ====================================
+uploads/
+media/
+storage/
+assets/uploads/
+public/uploads/
+public/media/
+public/images/uploads/
+public/videos/
+public/files/
+
+# ====================================
+# TIME BLOC SPECIFIC
+# ====================================
+
+# Encryption keys (NEVER COMMIT THESE!)
+encryption_keys/
+keys/
+private/
+certificates/
+
+# Payment gateway files
+payments/
+nowpayments/
+stripe/
+
+# User uploads
+user_data/
+user_uploads/
+encrypted_files/
+temp_uploads/
+
+# Backups
+backup/
+backups/
+*.backup
+*.bak
+*.old
+
+# Session files
+*.session
+sessions/
+
+# Cache
+.next/cache/
+.cache/
+
+# ====================================
+# MISC
+# ====================================
+*.seed
+*.pid
+*.pid.lock
+*.sock
+*.pid
+*.pid.lock
+*.sock
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+docker-compose.*.yml
+
+# CI/CD
+.circleci/
+.github/
+.gitlab/
+.bitbucket/
+.husky/
+.travis.yml
+.gitlab-ci.yml
+.azure-pipelines.yml
+Jenkinsfile
+
+# ====================================
+# FRONTEND SPECIFIC
+# ====================================
+
+# Next.js build output
+.next/
+.next/cache/
+.next/standalone/
+.next/server/
+.next/static/
+.next/trace/
+
+# Vercel
+.vercel/
+.vercel_build_output/
+
+# Public build outputs
+public/_next/
+public/static/chunks/
+public/static/css/
+public/static/js/
+
+# ====================================
+# BACKEND SPECIFIC
+# ====================================
+
+# Node.js
+node_modules/
+npm-debug.log
+
+# TypeScript
+*.tsbuildinfo
+dist-tsc/
+
+# Database migrations backup
+migrations/*.sql
+!migrations/*.example.sql
+
+# SSL certificates
+ssl/
+certificates/
+*.crt
+*.key
+*.pem
+
+# ====================================
+# FINAL NOTE
+# ====================================
+# Remember: NEVER commit:
+# 1. API keys
+# 2. Database passwords
+# 3. Encryption keys
+# 4. JWT secrets
+# 5. Payment gateway credentials
