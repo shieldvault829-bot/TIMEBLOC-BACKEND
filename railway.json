@@ -28,10 +28,10 @@
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3,
     "startCommand": "node --max-old-space-size=512 --trace-warnings server.js",
-    "healthcheckPath": "/api/health",  // ✅ CHANGED from "/" to "/api/health"
-    "healthcheckTimeout": 5,           // ✅ CHANGED from 30 to 5 seconds
-    "healthcheckInterval": 30,         // ✅ CHANGED from 60 to 30 seconds
-    "healthcheckMaxRetries": 5,        // ✅ CHANGED from 3 to 5
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 30,
+    "healthcheckInterval": 60,
+    "healthcheckMaxRetries": 3,
     "webSocket": true,
     "stickySessions": true,
     "firewall": {
@@ -82,11 +82,18 @@
   },
   "healthChecks": [
     {
-      "path": "/api/health",    // ✅ CHANGED from "/" to "/api/health"
+      "path": "/",
       "interval": 30,
       "timeout": 10,
       "retries": 3,
       "initialDelay": 5
+    },
+    {
+      "path": "/api/health",
+      "interval": 60,
+      "timeout": 15,
+      "retries": 2,
+      "initialDelay": 10
     }
   ],
   "resources": {
