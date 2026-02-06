@@ -116,8 +116,7 @@ const corsMiddleware = (req, res, next) => {
     'https://timebloc.com',
     'https://www.timebloc.com',
     'https://timebloc.vercel.app',
-    'http://localhost:3000',
-    process.env.FRONTEND_URL
+    'http://localhost:3000'
   ].filter(Boolean);
 
   if (allowedOrigins.includes(origin)) {
@@ -131,7 +130,7 @@ const corsMiddleware = (req, res, next) => {
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
     }
-  } else if (origin) {
+  } else if (origin && process.env.NODE_ENV === 'production') {
     console.warn(`🚫 Blocked CORS request from: ${origin}, IP: ${req.ip || 'unknown'}, Path: ${req.path}`);
     return res.status(403).json({ 
       success: false,
@@ -175,7 +174,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self'",
-    "connect-src 'self' https://api.nowpayments.io wss://" + (process.env.BACKEND_URL || 'localhost:3000').replace('https://', '').replace('http://', ''),
+    "connect-src 'self' wss:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -213,7 +212,6 @@ setInterval(() => {
   for (const [ip, blockData] of IP_BLOCKLIST.entries()) {
     if (now - blockData.blockedAt > 3600000) { // 1 hour block
       IP_BLOCKLIST.delete(ip);
-      console.log(`🟢 IP unblocked: ${ip}`);
     }
   }
 }, 60000);
@@ -253,15 +251,12 @@ app.use((req, res, next) => {
   
   // Check if exceeded limit
   if (validRequests.length >= RATE_LIMIT_MAX) {
-    console.warn(`🚫 Rate limit exceeded for IP: ${ip}, Path: ${req.path}, Requests: ${validRequests.length}`);
-    
     // Block IP if too many violations
     const violations = (requestCounts.get(`${ip}_violations`) || 0) + 1;
     requestCounts.set(`${ip}_violations`, violations);
     
     if (violations > 3) {
       IP_BLOCKLIST.set(ip, { blockedAt: now, reason: 'Excessive rate limit violations' });
-      console.log(`🔴 IP permanently blocked: ${ip}`);
     }
     
     const oldestRequest = validRequests[0];
@@ -356,8 +351,6 @@ app.use((req, res, next) => {
   };
   
   if (checkObject(req.body) || checkObject(req.query) || checkObject(req.params)) {
-    console.warn(`🚫 SQL injection attempt detected from IP: ${req.ip}, Path: ${req.path}`);
-    
     // Log suspicious activity
     IP_BLOCKLIST.set(req.ip, { 
       blockedAt: Date.now(), 
@@ -974,4 +967,4 @@ function gracefulShutdown(signal) {
 }
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
