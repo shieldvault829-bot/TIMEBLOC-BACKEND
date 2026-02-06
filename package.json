@@ -9,8 +9,8 @@
     "test": "echo \"No tests specified\" && exit 0",
     "railway:start": "node --max-old-space-size=512 --trace-warnings server.js",
     "health": "node -e \"console.log('✅ Health check passed')\"",
-    "preinstall": "rm -rf node_modules/.cache 2>/dev/null || true",
-    "build": "echo 'Build completed' || true"
+    "preinstall": "echo 'Skipping cache cleanup for Railway'",  // ✅ CHANGED
+    "build": "echo 'Build completed'"
   },
   "keywords": [
     "timebloc",

@@ -990,7 +990,8 @@ function verifySocketToken(token, clientIP) {
 // ====================
 const PORT = process.env.PORT || 3000;
 
-httpServer.listen(PORT, () => {
+// ✅ RAILWAY FIX: Add '0.0.0.0' for external access
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log('🔒 ====================================');
   console.log('🔒 TIME BLOC ULTRA SECURE SERVER');
   console.log('🔒 ====================================');
