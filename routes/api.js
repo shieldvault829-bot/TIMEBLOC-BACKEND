@@ -1,453 +1,385 @@
-// 📁 backend/routes/api.js - COMPLETE VERSION
 const express = require('express');
 const router = express.Router();
-const paymentService = require('../services/paymentService');
-const encryptionService = require('../services/encryptionService');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { supabase } = require('../config/supabase');
+const crypto = require('crypto');
 
-// ====================
-// 1. USER AUTHENTICATION
-// ====================
+router.post('/register', async (req, res) => {
+    try {
+        const { email, password, username, name } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const { data, error } = await supabase
+            .from('users')
+            .insert([{
+                email,
+                username,
+                name,
+                password_hash: hashedPassword
+            }])
+            .select()
+            .single();
 
-// Register User
-router.post('/auth/register', async (req, res) => {
-  try {
-    const { email, password, name } = req.body;
-    
-    // Validation
-    if (!email || !password || !name) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Email, password and name are required' 
-      });
+        if (error) throw error;
+
+        const token = jwt.sign(
+            { userId: data.id, email: data.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({ success: true, token, user: data });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
     }
-    
-    // Check if user exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
-    
-    if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'User already exists with this email' 
-      });
-    }
-    
-    // Create user
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert([{
-        email: email,
-        name: name,
-        password_hash: password, // Note: In production, use bcrypt!
-        premium_status: 'free',
-        created_at: new Date().toISOString()
-      }])
-      .select('id, email, name, premium_status, created_at')
-      .single();
-    
-    if (error) throw error;
-    
-    // Generate simple token (for demo - use JWT in production)
-    const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
-    
-    res.json({ 
-      success: true, 
-      message: 'Registration successful',
-      token: token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        premium: user.premium_status === 'premium'
-      }
-    });
-    
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Registration failed' 
-    });
-  }
 });
 
-// Login User
-router.post('/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Email and password are required' 
-      });
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+        if (error || !user) {
+            return res.status(401).json({ success: false, error: 'Invalid credentials' });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password_hash);
+        if (!validPassword) {
+            return res.status(401).json({ success: false, error: 'Invalid credentials' });
+        }
+
+        const token = jwt.sign(
+            { userId: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({ success: true, token, user });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
-    
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, name, premium_status, password_hash, premium_expiry')
-      .eq('email', email)
-      .single();
-    
-    if (error || !user) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid email or password' 
-      });
-    }
-    
-    // Check password (DEMO - use bcrypt.compare in production)
-    if (user.password_hash !== password) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid email or password' 
-      });
-    }
-    
-    // Generate token
-    const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
-    
-    // Check if premium is still valid
-    const isPremium = user.premium_status === 'premium' && 
-                     new Date(user.premium_expiry) > new Date();
-    
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token: token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        premium: isPremium,
-        premium_expiry: user.premium_expiry
-      }
-    });
-    
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Login failed' 
-    });
-  }
 });
 
-// Get Current User
-router.get('/auth/me', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Authorization token required' 
-      });
-    }
-    
-    // Decode token
-    const decoded = Buffer.from(token, 'base64').toString();
-    const [userId] = decoded.split(':');
-    
-    if (!userId) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid token' 
-      });
-    }
-    
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, name, premium_status, premium_expiry, created_at')
-      .eq('id', userId)
-      .single();
-    
-    if (error || !user) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
-      });
-    }
-    
-    // Check premium expiry
-    const isPremium = user.premium_status === 'premium' && 
-                     new Date(user.premium_expiry) > new Date();
-    
-    res.json({ 
-      success: true, 
-      user: {
-        ...user,
-        premium: isPremium
-      }
-    });
-    
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Failed to get user' 
-    });
-  }
-});
-
-// ====================
-// 2. PAYMENT APIs
-// ====================
-
-// Create Payment
 router.post('/create-payment', async (req, res) => {
-  try {
-    const { userId, amount, currency = 'USD', product, userEmail } = req.body;
-    
-    // Validation
-    if (!userId || !amount || !userEmail) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'userId, amount and userEmail are required' 
-      });
+    try {
+        const { userId, amount, currency, product } = req.body;
+        
+        const orderId = `timebloc_${userId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+        
+        const response = await fetch('https://api.nowpayments.io/v1/payment', {
+            method: 'POST',
+            headers: {
+                'x-api-key': process.env.NOWPAYMENTS_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                price_amount: amount,
+                price_currency: currency,
+                pay_currency: 'usdt',
+                order_id: orderId,
+                order_description: `TimeBloc ${product}`,
+                ipn_callback_url: `${process.env.BACKEND_URL}/api/ipn-webhook`,
+                success_url: `${process.env.FRONTEND_URL}/payment/success`,
+                cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`
+            })
+        });
+
+        const paymentData = await response.json();
+
+        await supabase.from('payments').insert([{
+            user_id: userId,
+            order_id: orderId,
+            amount,
+            currency,
+            status: 'pending',
+            payment_id: paymentData.payment_id,
+            invoice_url: paymentData.invoice_url
+        }]);
+
+        res.json({ success: true, payment: paymentData, orderId });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
-    
-    // Check if user exists
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('id', userId)
-      .single();
-    
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
-      });
-    }
-    
-    // Create payment
-    const paymentResult = await paymentService.createPayment(
-      userId, amount, currency, product, userEmail
-    );
-    
-    if (!paymentResult.success) {
-      throw new Error(paymentResult.error || 'Payment creation failed');
-    }
-    
-    // Save payment to database
-    const { error: dbError } = await supabase
-      .from('payments')
-      .insert([{
-        user_id: userId,
-        payment_id: paymentResult.payment.payment_id,
-        order_id: paymentResult.orderId,
-        amount: amount,
-        currency: currency,
-        status: 'pending',
-        invoice_url: paymentResult.payment.invoice_url,
-        created_at: new Date().toISOString()
-      }]);
-    
-    if (dbError) throw dbError;
-    
-    res.json({
-      success: true,
-      message: 'Payment created successfully',
-      payment: paymentResult.payment,
-      orderId: paymentResult.orderId
-    });
-    
-  } catch (error) {
-    console.error('Create payment error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Payment creation failed' 
-    });
-  }
 });
 
-// Verify Payment
-router.get('/verify-payment/:orderId', async (req, res) => {
-  try {
-    const orderId = req.params.orderId;
-    
-    if (!orderId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'orderId is required' 
-      });
+router.post('/create-post', async (req, res) => {
+    try {
+        const { userId, content, privacy, scheduled_for, hashtags, media_urls } = req.body;
+        
+        const postData = {
+            user_id: userId,
+            content,
+            privacy: privacy || 'public',
+            media_urls: media_urls || [],
+            hashtags: hashtags || [],
+            scheduled_for: scheduled_for || null,
+            published_at: scheduled_for ? null : new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('posts')
+            .insert([postData])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, post: data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
-    
-    const { data: payment, error } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('order_id', orderId)
-      .single();
-    
-    if (error || !payment) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Payment not found' 
-      });
-    }
-    
-    res.json({
-      success: true,
-      payment: payment,
-      isCompleted: payment.status === 'completed'
-    });
-    
-  } catch (error) {
-    console.error('Verify payment error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Payment verification failed' 
-    });
-  }
 });
 
-// ====================
-// 3. CONTENT ENCRYPTION APIs
-// ====================
-
-// Encrypt Content
-router.post('/content/encrypt', async (req, res) => {
-  try {
-    const { content, userId } = req.body;
-    
-    if (!content || !userId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'content and userId are required' 
-      });
-    }
-    
-    // Get user's encryption key
-    const { data: user } = await supabase
-      .from('users')
-      .select('encryption_key')
-      .eq('id', userId)
-      .single();
-    
-    const encryptionKey = user?.encryption_key || process.env.DEFAULT_ENCRYPTION_KEY;
-    
-    if (!encryptionKey) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Encryption key not found' 
-      });
-    }
-    
-    const encrypted = encryptionService.encryptData(content, encryptionKey);
-    
-    res.json({ 
-      success: true,
-      message: 'Content encrypted successfully',
-      encrypted: encrypted.encrypted,
-      iv: encrypted.iv,
-      authTag: encrypted.authTag
-    });
-    
-  } catch (error) {
-    console.error('Encryption error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Encryption failed' 
-    });
-  }
-});
-
-// Decrypt Content
-router.post('/content/decrypt', async (req, res) => {
-  try {
-    const { encrypted, iv, authTag, userId } = req.body;
-    
-    if (!encrypted || !iv || !authTag || !userId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'All fields are required: encrypted, iv, authTag, userId' 
-      });
-    }
-    
-    // Get user's encryption key
-    const { data: user } = await supabase
-      .from('users')
-      .select('encryption_key')
-      .eq('id', userId)
-      .single();
-    
-    const encryptionKey = user?.encryption_key || process.env.DEFAULT_ENCRYPTION_KEY;
-    
-    if (!encryptionKey) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Decryption key not found' 
-      });
-    }
-    
-    const decrypted = encryptionService.decryptData(
-      { encrypted, iv, authTag },
-      encryptionKey
-    );
-    
-    res.json({ 
-      success: true,
-      message: 'Content decrypted successfully',
-      decrypted: decrypted
-    });
-    
-  } catch (error) {
-    console.error('Decryption error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Decryption failed' 
-    });
-  }
-});
-
-// ====================
-// 4. USER PROFILE API
-// ====================
-
-// Get User by ID
 router.get('/user/:userId', async (req, res) => {
-  try {
-    const userId = req.params.userId;
-    
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, name, premium_status, premium_expiry, created_at')
-      .eq('id', userId)
-      .single();
-    
-    if (error || !user) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
-      });
+    try {
+        const { userId } = req.params;
+        
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (error) throw error;
+
+        const { data: badges } = await supabase
+            .from('user_badges')
+            .select('badge:badges(*)')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+
+        const { data: posts } = await supabase
+            .from('posts')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        res.json({ 
+            success: true, 
+            user, 
+            badges: badges?.map(b => b.badge) || [],
+            posts: posts || []
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
-    
-    // Check premium expiry
-    const isPremium = user.premium_status === 'premium' && 
-                     new Date(user.premium_expiry) > new Date();
-    
-    res.json({ 
-      success: true, 
-      user: {
-        ...user,
-        premium: isPremium
-      }
-    });
-    
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Failed to get user' 
-    });
-  }
 });
 
-// ====================
-// EXPORT
-// ====================
+router.post('/follow', async (req, res) => {
+    try {
+        const { followerId, followingId } = req.body;
+        
+        const { data, error } = await supabase
+            .from('follows')
+            .insert([{
+                follower_id: followerId,
+                following_id: followingId
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, follow: data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/like', async (req, res) => {
+    try {
+        const { userId, postId } = req.body;
+        
+        const { data, error } = await supabase
+            .from('likes')
+            .insert([{
+                user_id: userId,
+                post_id: postId
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, like: data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/create-story', async (req, res) => {
+    try {
+        const { userId, media_url, media_type, caption } = req.body;
+        
+        const { data, error } = await supabase
+            .from('stories')
+            .insert([{
+                user_id: userId,
+                media_url,
+                media_type,
+                caption,
+                duration: 24
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, story: data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/referral', async (req, res) => {
+    try {
+        const { referrerId, referredEmail } = req.body;
+        
+        const { data: referredUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', referredEmail)
+            .single();
+
+        if (!referredUser) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        const { data, error } = await supabase
+            .from('referrals')
+            .insert([{
+                referrer_id: referrerId,
+                referred_id: referredUser.id,
+                status: 'completed'
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, referral: data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/upload-gallery', async (req, res) => {
+    try {
+        const { userId, file_name, file_url, file_type, file_size, privacy } = req.body;
+        
+        const { data, error } = await supabase
+            .from('user_gallery')
+            .insert([{
+                user_id: userId,
+                file_name,
+                file_url,
+                file_type,
+                file_size,
+                privacy: privacy || 'private'
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, file: data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.get('/dashboard/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const { data: user } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        const { data: posts } = await supabase
+            .from('posts')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        const { data: notifications } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        const { data: badges } = await supabase
+            .from('user_badges')
+            .select('badge:badges(*)')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+
+        res.json({
+            success: true,
+            user,
+            posts: posts || [],
+            notifications: notifications || [],
+            badges: badges?.map(b => b.badge) || []
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/ipn-webhook', async (req, res) => {
+    try {
+        const paymentData = req.body;
+        
+        const { error } = await supabase
+            .from('payments')
+            .update({
+                status: paymentData.payment_status,
+                completed_at: new Date().toISOString()
+            })
+            .eq('order_id', paymentData.order_id);
+
+        if (error) throw error;
+
+        if (paymentData.payment_status === 'finished') {
+            const orderParts = paymentData.order_id.split('_');
+            if (orderParts.length >= 2) {
+                const userId = orderParts[1];
+                const expiry = new Date();
+                expiry.setMonth(expiry.getMonth() + 1);
+                
+                await supabase
+                    .from('users')
+                    .update({
+                        subscription_tier: 'premium',
+                        subscription_expiry: expiry.toISOString()
+                    })
+                    .eq('id', userId);
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy', 
+        timestamp: new Date().toISOString(),
+        service: 'TimeBloc Backend API'
+    });
+});
+
 module.exports = router;
