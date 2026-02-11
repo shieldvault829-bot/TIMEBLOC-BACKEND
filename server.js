@@ -1,62 +1,44 @@
 const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-require('dotenv').config();
-
 const app = express();
-const httpServer = createServer(app);
+const PORT = process.env.PORT || 3000;
 
-// ✅ MUST ADD HEALTH CHECK AT THE VERY BEGINNING
+// ✅ HEALTH CHECK MUST BE FIRST - NO MIDDLEWARE BEFORE
 app.get('/', (req, res) => {
-    res.json({ 
+    res.status(200).json({ 
         status: 'healthy', 
-        service: 'TimeBloc API',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    });
-});
-
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
-
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
-        api: 'working',
+        service: 'TimeBloc Backend',
         timestamp: new Date().toISOString()
     });
 });
 
-// Middleware
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS
+// Simple CORS
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    if (req.method === 'OPTIONS') return res.status(200).end();
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     next();
 });
 
-// Import routes
-const apiRoutes = require('./routes/api');
-app.use('/api', apiRoutes);
-
-// 404 handler
-app.use('*', (req, res) => {
-    res.status(404).json({ error: 'Route not found' });
+// Test route
+app.get('/test', (req, res) => {
+    res.json({ message: 'API is working' });
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`✅ Health check: http://0.0.0.0:${PORT}/health`);
+    console.log(`✅ Home: http://0.0.0.0:${PORT}/`);
 });
+ 
